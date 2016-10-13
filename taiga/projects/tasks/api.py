@@ -24,7 +24,7 @@ from taiga.base import filters, response
 from taiga.base import exceptions as exc
 from taiga.base.decorators import list_route
 from taiga.base.api import ModelCrudViewSet, ModelListViewSet
-from taiga.base.api.mixins import BlockedByProjectMixin
+from taiga.base.api.mixins import BlockedByProjectMixin, ByRefMixin
 from taiga.base.utils import json
 from taiga.projects.history.mixins import HistoryResourceMixin
 from taiga.projects.milestones.models import Milestone
@@ -44,9 +44,8 @@ from . import validators
 from . import utils as tasks_utils
 
 
-class TaskViewSet(OCCResourceMixin, VotedResourceMixin, HistoryResourceMixin,
-                  WatchedResourceMixin, TaggedResourceMixin, BlockedByProjectMixin,
-                  ModelCrudViewSet):
+class TaskViewSet(OCCResourceMixin, VotedResourceMixin, HistoryResourceMixin, WatchedResourceMixin,
+                  ByRefMixin, TaggedResourceMixin, BlockedByProjectMixin, ModelCrudViewSet):
     validator_class = validators.TaskValidator
     queryset = models.Task.objects.all()
     permission_classes = (permissions.TaskPermission,)
@@ -219,21 +218,6 @@ class TaskViewSet(OCCResourceMixin, VotedResourceMixin, HistoryResourceMixin,
             "tags": self.filter_queryset(queryset)
         }
         return response.Ok(services.get_tasks_filters_data(project, querysets))
-
-    @list_route(methods=["GET"])
-    def by_ref(self, request):
-        retrieve_kwargs = {
-            "ref": request.QUERY_PARAMS.get("ref", None)
-        }
-        project_id = request.QUERY_PARAMS.get("project", None)
-        if project_id is not None:
-            retrieve_kwargs["project_id"] = project_id
-
-        project_slug = request.QUERY_PARAMS.get("project__slug", None)
-        if project_slug is not None:
-            retrieve_kwargs["project__slug"] = project_slug
-
-        return self.retrieve(request, **retrieve_kwargs)
 
     @list_route(methods=["GET"])
     def csv(self, request):

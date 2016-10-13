@@ -24,7 +24,7 @@ from taiga.base import filters, response
 from taiga.base import exceptions as exc
 from taiga.base.decorators import list_route
 from taiga.base.api import ModelCrudViewSet, ModelListViewSet
-from taiga.base.api.mixins import BlockedByProjectMixin
+from taiga.base.api.mixins import BlockedByProjectMixin, ByRefMixin
 from taiga.base.api.viewsets import NestedViewSetMixin
 from taiga.base.utils import json
 
@@ -43,9 +43,8 @@ from . import validators
 from . import utils as epics_utils
 
 
-class EpicViewSet(OCCResourceMixin, VotedResourceMixin, HistoryResourceMixin,
-                  WatchedResourceMixin, TaggedResourceMixin, BlockedByProjectMixin,
-                  ModelCrudViewSet):
+class EpicViewSet(OCCResourceMixin, VotedResourceMixin, HistoryResourceMixin, WatchedResourceMixin,
+                  ByRefMixin, TaggedResourceMixin, BlockedByProjectMixin, ModelCrudViewSet):
     validator_class = validators.EpicValidator
     queryset = models.Epic.objects.all()
     permission_classes = (permissions.EpicPermission,)
@@ -173,21 +172,6 @@ class EpicViewSet(OCCResourceMixin, VotedResourceMixin, HistoryResourceMixin,
         return response.Ok(services.get_epics_filters_data(project, querysets))
 
     @list_route(methods=["GET"])
-    def by_ref(self, request):
-        retrieve_kwargs = {
-            "ref": request.QUERY_PARAMS.get("ref", None)
-        }
-        project_id = request.QUERY_PARAMS.get("project", None)
-        if project_id is not None:
-            retrieve_kwargs["project_id"] = project_id
-
-        project_slug = request.QUERY_PARAMS.get("project__slug", None)
-        if project_slug is not None:
-            retrieve_kwargs["project__slug"] = project_slug
-
-        return self.retrieve(request, **retrieve_kwargs)
-
-    @list_route(methods=["GET"])
     def csv(self, request):
         uuid = request.QUERY_PARAMS.get("uuid", None)
         if uuid is None:
@@ -222,7 +206,7 @@ class EpicViewSet(OCCResourceMixin, VotedResourceMixin, HistoryResourceMixin,
         epics = self.get_queryset().filter(id__in=[i.id for i in epics])
         for epic in epics:
             self.persist_history_snapshot(obj=epic)
-        
+
         epics_serialized = self.get_serializer_class()(epics, many=True)
 
         return response.Ok(epics_serialized.data)
